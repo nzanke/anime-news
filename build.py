@@ -1,0 +1,86 @@
+"""アニメ制作決定ニュース（https://nzanke.github.io/anime-news/）を組み立てる。
+データは data/news.json（非公開の anime-database の articles/news_tag.py が書き出し、公開の anime-world を経由して届く）。
+記事の本文は持たず、見出し・リンク・作品名・時期・局だけを載せる。"""
+import hashlib, html, json, os, shutil
+from collections import Counter
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+D = lambda *p: os.path.join(HERE, *p)
+OUT = D('_site')
+SITE = 'アニメ制作決定ニュース'
+esc = lambda s: html.escape(str(s or ''))
+if os.path.exists(OUT): shutil.rmtree(OUT)
+os.makedirs(OUT)
+for f in ('style.css', 'news.js'): shutil.copy(D('static', f), OUT)
+open(os.path.join(OUT, '.nojekyll'), 'w').close()
+NEWS = json.load(open(D('data', 'news.json'), encoding='utf-8'))
+nj = json.dumps(NEWS, ensure_ascii=False, separators=(',', ':'))
+open(os.path.join(OUT, 'news.json'), 'w', encoding='utf-8').write(nj)
+V = lambda b: hashlib.sha1(b).hexdigest()[:8]
+CSS_V, NJS_V, NEWS_V = V(open(D('static', 'style.css'), 'rb').read()), V(open(D('static', 'news.js'), 'rb').read()), V(nj.encode())
+
+NAV = [('index.html', 'ニュース'), ('upcoming.html', '放送・公開前'), ('released.html', '放送・公開済み'), ('about.html', 'このサイトについて')]
+FONTS = ('<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+         '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDMincho&family=BIZ+UDPMincho:wght@400;700&family=BIZ+UDPGothic:wght@400;700&display=swap">')
+
+def page(path, title, body, current, script=''):
+    nav = ''.join(f'<a href="{u}"{" class=on" if u == current else ""}>{esc(t)}</a>' for u, t in NAV)
+    full = esc(SITE) if title == SITE else f'{esc(title)}｜{esc(SITE)}'
+    doc = f'''<!DOCTYPE html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{full}</title><meta name="description" content="アニメ映画・テレビアニメ・配信アニメなどの制作決定と放送日・公開日のニュースを毎日集めた一覧">
+{FONTS}<link rel="stylesheet" href="style.css?v={CSS_V}"></head>
+<body><div class="wrap">
+<p class="sitename"><a href="index.html">{esc(SITE)}</a></p>
+<nav class="nav" aria-label="サイト内">{nav}</nav>
+<main>
+{body}
+</main>
+<footer class="site"><p>MANTANWEB・アニメイトタイムズの記事の見出しとリンクを毎日集めて並べています（記事の本文は載せていません）。アニメの記事を探すなら <a href="https://nzanke.github.io/anime-world/">アニメインタビュー検索</a>。</p></footer>
+</div>{script}<script data-goatcounter="https://nzanke.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script></body></html>
+'''
+    open(os.path.join(OUT, path), 'w', encoding='utf-8').write(doc)
+
+nsites = [x for x, _ in Counter(s_ for e in NEWS['items'] for s_ in [e['s']] + [o[0] for o in e.get('o', [])]).most_common()]
+NCATS = [('', 'すべて', 250), ('映画', 'アニメ映画', 25), ('テレビ', 'テレビアニメ', 250), ('その他', 'その他（OVA・配信・CM・動画）', 150), ('未定', '媒体の発表なし', 70)]
+UCATS = [('', 'すべて', 250), ('映画', '映画', 25), ('テレビ', 'テレビ', 250), ('その他', '配信・OVAなど', 150), ('未定', '媒体未発表', 70)]
+btns = lambda cats: ''.join(f'<button type="button" data-c="{c}" style="--h:{h}"{" class=on" if not c else ""}>{esc(t)}<span class="n"></span></button>' for c, t, h in cats)
+SCRIPT = lambda mode: f'<script>window.NEWS="news.json?v={NEWS_V}";window.MODE="{mode}"</script><script src="news.js?v={NJS_V}"></script>'
+ICONS = '<span class="ic" style="--h:25">映</span>映画 <span class="ic" style="--h:250">TV</span>テレビ <span class="ic" style="--h:150">配</span>配信・OVA・CM・動画 <span class="ic" style="--h:70">?</span>媒体未発表 <span class="sq">続</span>続編・新作'
+
+page('index.html', SITE, f'''<h1>アニメ制作決定ニュース</h1>
+<p class="lead">アニメ映画・テレビアニメ・その他のアニメ（OVA・配信アニメ・CM・動画）の制作決定（新規のアニメ化、続編・新作・劇場版の発表）と、その放送日・放送局・公開日のニュースを集めた一覧です。同じ発表を複数のサイトが伝えたものは1行にまとめています。毎日更新します。</p>
+<div class="seg" id="seg">{btns(NCATS)}</div>
+<div class="sbar"><input type="search" id="q" placeholder="作品名・題名から検索（スペース区切りで AND）">
+<select id="site"><option value="">すべてのサイト</option>{"".join(f'<option>{esc(x)}</option>' for x in nsites)}</select></div>
+<p class="jump"><a href="upcoming.html">放送・公開前のアニメ一覧（アニメ化が決まり、まだ放送・公開されていない作品）→</a></p>
+<div class="opts"><label><input type="checkbox" id="sched" checked> 放送日・放送局・公開日のニュースも出す</label><label><input type="checkbox" id="newonly"> 新規のアニメ化だけ（続編・新作を除く）</label><label><input type="checkbox" id="old"> 古い順</label></div>
+<p class="count" id="count"></p>
+<ul class="ulist" id="list"></ul>
+<button class="more" id="more" hidden>さらに表示</button>''', 'index.html', SCRIPT('news'))
+page('upcoming.html', '放送・公開前のアニメ', f'''<h1>放送・公開前のアニメ</h1>
+<p class="lead">制作が決まり、まだ放送・公開されていない作品（予定の早い順、毎日更新）。{ICONS}。局名に指を置くと全局の日時が出ます。</p>
+<div class="seg" id="seg">{btns(UCATS)}</div>
+<div class="sbar"><input type="search" id="q" placeholder="作品名・局名で検索"></div>
+<div class="opts"><label><input type="checkbox" id="newonly"> 新規のアニメ化だけ</label><a class="jump" href="released.html">放送・公開済みになった作品 →</a><a class="jump" href="index.html">制作決定ニュースの一覧 →</a></div>
+<p class="count" id="count"></p>
+<ul class="ulist" id="list"></ul>
+<button class="more" id="more" hidden>さらに表示</button>''', 'upcoming.html', SCRIPT('upcoming'))
+page('released.html', '放送・公開済みになったアニメ', f'''<h1>放送・公開済みになったアニメ</h1>
+<p class="lead">放送・公開前の一覧に載っていて、放送・公開が始まったので一覧から外れた作品（放送・公開の新しい順、毎日更新）。日付は記事で発表された放送・公開日です。{ICONS}</p>
+<div class="seg" id="seg">{btns(UCATS)}</div>
+<div class="sbar"><input type="search" id="q" placeholder="作品名で検索"></div>
+<div class="opts"><label><input type="checkbox" id="newonly"> 新規のアニメ化だけ</label><a class="jump" href="upcoming.html">放送・公開前のアニメ →</a><a class="jump" href="index.html">制作決定ニュースの一覧 →</a></div>
+<p class="count" id="count"></p>
+<ul class="ulist" id="list"></ul>
+<button class="more" id="more" hidden>さらに表示</button>''', 'released.html', SCRIPT('released'))
+page('about.html', 'このサイトについて', '''<h1>このサイトについて</h1>
+<p>アニメの制作決定（新規のアニメ化、続編・新作・劇場版の発表）と、その放送日・放送局・公開日のニュースを、毎日自動で集めて並べるサイトです。</p>
+<h2>集めている記事</h2>
+<p>MANTANWEB と アニメイトタイムズ のアニメの記事です。毎日夕方に新着を集めます（記事の解禁がだいたい16〜17時のため）。過去の記事は2025年11月から集めています。</p>
+<h2>載せているもの</h2>
+<p>記事の日付・見出し・リンクと、記事から読み取った作品名・種類（映画・テレビ・配信など）・放送や公開の時期・放送局です。記事の本文は載せていません。読み取りは決まった規則で機械的に行っているため、誤りが混じることがあります。</p>
+<h2>放送・公開前の一覧</h2>
+<p>制作が決まった作品を1作品1行にまとめ、最新の記事で発表された時期の早い順に並べています。放送・公開の日を過ぎた作品は「放送・公開済み」の一覧に移ります。</p>''', 'about.html')
+print('組み立て', len(NEWS['items']), 'ニュース', len(NEWS.get('upcoming', [])), '放送・公開前', len(NEWS.get('released', [])), '放送・公開済み')
