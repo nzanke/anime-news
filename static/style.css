@@ -1,6 +1,6 @@
 /* アニメレビュー保管庫：Febri・アキバ総研 記事アーカイブ索引と同じ作り（白地・細い罫線・ゴシック・控えめな色） */
 :root{--fg:#1a1a1a;--muted:#6b6b6b;--line:#e3e3e3;--accent:#1f4f8a;--bg:#fff;--pale:#f6f7f8;
-  --sans:"BIZ UDPGothic","Hiragino Sans","Noto Sans JP","Yu Gothic",sans-serif}
+  --sans:"BIZ UDGothic","BIZ UDPGothic","Hiragino Sans","Noto Sans JP","Yu Gothic",sans-serif}
 @media (prefers-color-scheme:dark){:root{--fg:#e8e8e8;--muted:#9a9a9a;--line:#333;--accent:#7fb0ff;--bg:#141414;--pale:#1d1d1d}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);line-height:1.6;-webkit-text-size-adjust:100%}
