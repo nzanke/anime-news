@@ -239,3 +239,16 @@ h2.add-one{margin-top:8px}
 /* アニメ制作決定ニュース：サイト名 */
 .sitename{margin:0 0 6px;font-family:var(--gothic,var(--sans));font-weight:700;font-size:15px;letter-spacing:.02em}
 .sitename a{color:var(--fg);text-decoration:none}
+/* 「このサイトについて」：検索欄の下の行の右端の ? アイコン。押すと説明の箱が開く */
+.cbar{position:relative;display:flex;align-items:center;gap:12px;margin:20px 0 6px}
+.cbar .count{flex:1;margin:0}
+.about{margin-left:auto}
+.about summary{list-style:none;cursor:pointer;width:24px;height:24px;border-radius:50%;border:1px solid var(--line);color:var(--muted);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;user-select:none}
+.about summary::-webkit-details-marker{display:none}
+.about summary:hover,.about[open] summary{color:var(--bg);background:var(--accent);border-color:var(--accent)}
+.aboutbox{position:absolute;left:0;right:0;top:calc(100% + 8px);z-index:10;background:var(--bg);border:1px solid var(--line);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);padding:12px 14px;font-size:13px;color:var(--muted);max-height:70vh;overflow:auto}
+.aboutbox p{margin:0 0 8px;line-height:1.7}
+.aboutbox p:last-child{margin-bottom:0}
+.aboutbox .abh{font-weight:700;color:var(--fg);font-size:14px}
+.aboutbox b{color:var(--fg);font-weight:700}
+.aboutbox .ic{min-width:20px;height:17px;font-size:9.5px;vertical-align:1px;margin:0 2px 0 6px}
