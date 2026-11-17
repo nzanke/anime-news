@@ -32,7 +32,7 @@ ABOUT = {
 def about(cur):
     order = [cur] + [k for k in ABOUT if k != cur]
     tabs = ''.join(f'<p><b>{esc(ABOUT[k][0])}</b>：{ABOUT[k][1]}</p>' for k in order)
-    return f'''<details class="about"><summary title="このサイトについて" aria-label="このサイトについて">?</summary><div class="aboutbox"><p class="abh">このサイトについて</p>
+    return f'''<details class="about"><summary><span class="qi">?</span>このサイトについて</summary><div class="aboutbox"><p class="abh">このサイトについて</p>
 {tabs}
 <p><b>アイコン</b>：{ICONS}</p>
 <p><b>集めている記事</b>：MANTANWEB と アニメイトタイムズ のアニメの記事。毎日夕方に新着を集めます（記事の解禁がだいたい16〜17時のため）。過去の記事は2025年11月から集めています。</p>

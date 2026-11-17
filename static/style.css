@@ -243,9 +243,11 @@ h2.add-one{margin-top:8px}
 .cbar{position:relative;display:flex;align-items:center;gap:12px;margin:20px 0 6px}
 .cbar .count{flex:1;margin:0}
 .about{margin-left:auto}
-.about summary{list-style:none;cursor:pointer;width:24px;height:24px;border-radius:50%;border:1px solid var(--line);color:var(--muted);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;user-select:none}
+.about summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);user-select:none;white-space:nowrap}
 .about summary::-webkit-details-marker{display:none}
-.about summary:hover,.about[open] summary{color:var(--bg);background:var(--accent);border-color:var(--accent)}
+.about .qi{width:20px;height:20px;border-radius:50%;border:1px solid var(--line);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.about summary:hover,.about[open] summary{color:var(--fg)}
+.about summary:hover .qi,.about[open] .qi{color:var(--bg);background:var(--accent);border-color:var(--accent)}
 .aboutbox{position:absolute;left:0;right:0;top:calc(100% + 8px);z-index:10;background:var(--bg);border:1px solid var(--line);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);padding:12px 14px;font-size:13px;color:var(--muted);max-height:70vh;overflow:auto}
 .aboutbox p{margin:0 0 8px;line-height:1.7}
 .aboutbox p:last-child{margin-bottom:0}
