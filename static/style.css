@@ -138,7 +138,7 @@ ul.up .when .none{font-size:12px}
 ul.ulist{list-style:none;padding:0;margin:0}
 .ug{position:sticky;top:0;background:var(--bg);font-size:13px;font-weight:700;color:var(--fg);padding:14px 0 4px;border-bottom:2px solid var(--fg);z-index:1}
 .ur{display:flex;align-items:center;gap:10px;padding:7px 2px;border-bottom:1px solid var(--line);min-height:38px}
-.ud{flex:0 0 44px;text-align:right;font-variant-numeric:tabular-nums;font-size:15px;font-weight:700;white-space:nowrap}
+.ud{flex:0 0 48px;text-align:right;font-variant-numeric:tabular-nums;font-size:15px;font-weight:700;white-space:nowrap}
 .ud small{font-size:10px;font-weight:400;color:var(--muted);margin-left:2px}
 .ud .dq{font-size:11px;font-weight:400;color:var(--muted)}
 .ic{--h:250;flex:0 0 auto;display:inline-grid;place-items:center;min-width:24px;height:20px;padding:0 4px;border-radius:5px;font-size:10.5px;font-weight:700;letter-spacing:-.02em;
@@ -254,3 +254,4 @@ h2.add-one{margin-top:8px}
 .aboutbox .abh{font-weight:700;color:var(--fg);font-size:14px}
 .aboutbox b{color:var(--fg);font-weight:700}
 .aboutbox .ic{min-width:20px;height:17px;font-size:9.5px;vertical-align:1px;margin:0 2px 0 6px}
+.ud .left{display:block;font-size:10px;line-height:1.2;font-weight:400;color:var(--muted);opacity:.85;white-space:nowrap;text-align:right;margin-top:1px}

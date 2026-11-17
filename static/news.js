@@ -48,8 +48,17 @@
     if (se) return se[1] + '年' + se[2];
     return m[1] + '年' + (+m[2]) + '月';
   }
+  var TODAY = new Date(); TODAY.setHours(0, 0, 0, 0);
+  function left(e) {   // 放送・公開前で1か月以内なら「あと○日」（今日・明日）
+    if (REL || window.MODE !== 'upcoming') return '';
+    var m = (e.pk || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m || m[3] === '99') return '';
+    var n = Math.round((new Date(+m[1], +m[2] - 1, +m[3]) - TODAY) / 864e5);
+    if (n < 0 || n > 31) return '';
+    return '<span class="left">' + (n === 0 ? '今日' : n === 1 ? '明日' : 'あと' + n + '日') + '</span>';
+  }
   function uprow(e) {
-    return '<li class="ur"><span class="ud">' + day(e) + '</span>' + icon(e) +
+    return '<li class="ur"><span class="ud">' + day(e) + left(e) + '</span>' + icon(e) +
       '<a class="un" href="' + esc(e.su || e.u) + '" target="_blank" rel="noopener">' + esc(e.n) + '</a>' +
       (e.q ? '<span class="sq" title="続編・新作">続</span>' : '') + tvline(e) + '</li>';
   }
