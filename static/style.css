@@ -255,3 +255,4 @@ h2.add-one{margin-top:8px}
 .aboutbox b{color:var(--fg);font-weight:700}
 .aboutbox .ic{min-width:20px;height:17px;font-size:9.5px;vertical-align:1px;margin:0 2px 0 6px}
 .ud .left{display:block;font-size:10px;line-height:1.2;font-weight:400;color:var(--muted);opacity:.85;white-space:nowrap;text-align:right;margin-top:1px}
+@media (max-width:600px){.sitename{font-size:17px;margin-bottom:4px}}
