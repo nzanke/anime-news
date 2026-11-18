@@ -67,26 +67,25 @@
     var tv = e.tv ? '<span class="tvl">' + (e.c === '映画' ? '' : '放送・配信：') + e.tv.map(function (x) { return esc(x[0]) + (x[1] ? ' <span class="tvw">' + esc(x[1]) + '</span>' : ''); }).join('／') + '</span>' : '';
     if (UP) return uprow(e);
     // 制作決定ニュースの一覧も、記事検索と同じ見た目（月の見出し、日にちと印、題名は折り返して全部出す）
-    // 同じ発表を別のサイトも伝えたものは1行にまとめ、「ほか○件」を押したときだけ別のサイトの見出しを出す
+    // 同じ話題を別のサイトも伝えたものは1行にまとめ、サイト名の横の青い丸の件数（ボタン）を押したときだけ、ほかの記事の見出しを広げる
     var os_ = (e.o || []).filter(function (o) { return o[2]; });
-    var also = os_.length ? '<button type="button" class="ex" aria-expanded="false">ほか' + os_.length + '件</button>' : '';
-    var exl = os_.length ? '<ul class="exl" hidden>' + os_.map(function (o) {
-      var m2 = /^(\d{4})-(\d{2})-(\d{2})/.exec(o[3] || '');
-      return '<li><a href="' + esc(o[1]) + '" target="_blank" rel="noopener">' + esc(o[2]) + '</a><span class="exd">' + esc(o[0]) + (m2 ? ' ' + +m2[2] + '/' + +m2[3] : '') + '</span></li>';
+    var cn = os_.length ? '<button type="button" class="cn" aria-expanded="false" aria-label="同じ話題の記事 ' + (os_.length + 1) + '件を開く">' + (os_.length + 1) + '</button>' : '';
+    var olist = os_.length ? '<ul class="olist" hidden>' + os_.map(function (o) {
+      return '<li><a href="' + esc(o[1]) + '" target="_blank" rel="noopener">' + esc(o[2]) + '</a><span class="os">' + esc(o[0]) + '</span></li>';
     }).join('') + '</ul>' : '';
     var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(e.d || '');
     var dd = m ? +m[3] + '<small>' + WD[new Date(+m[1], +m[2] - 1, +m[3]).getDay()] + '</small>' : '<span class="dq">—</span>';
-    var sub = (e.p ? '<span class="tg">' + esc(e.p) + '</span>' : '') + tv + also;
+    var sub = (e.p ? '<span class="tg">' + esc(e.p) + '</span>' : '') + tv;
     return '<li class="ur sr"><span class="ud">' + dd + '</span>' + icon(e) +
       '<span class="sb"><a class="un" href="' + esc(e.u) + '" target="_blank" rel="noopener">' + esc(e.t) + '</a>' +
       (e.k === 's' ? '<span class="sq" title="放送日・放送局・公開日のニュース">日程</span>' : (e.q ? '<span class="sq" title="続編・新作">続</span>' : '')) +
-      (sub ? '<span class="tags">' + sub + '</span>' : '') + exl + '</span>' +
-      '<span class="st">' + esc(e.s) + '</span></li>';
+      (sub ? '<span class="tags">' + sub + '</span>' : '') + olist + '</span>' +
+      '<span class="st' + (cn ? '' : ' nocn') + '"><span class="sn">' + esc(e.s) + '</span>' + cn + '</span></li>';
   }
-  document.addEventListener('click', function (ev) {
-    var b = ev.target.closest && ev.target.closest('.ex'); if (!b) return;
-    var ul = b.closest('.sb').querySelector('.exl'); var open = ul.hidden;
-    ul.hidden = !open; b.setAttribute('aria-expanded', open ? 'true' : 'false'); b.classList.toggle('on', open);
+  document.addEventListener('click', function (ev) {   // 件数のボタン：同じ行の中の一覧を開閉する（行を描き直しても効くようにドキュメントに1つ）
+    var b = ev.target.closest && ev.target.closest('button.cn'); if (!b) return;
+    var ul = b.closest('li').querySelector('.olist'); if (!ul) return;
+    var open = ul.hidden; ul.hidden = !open; b.setAttribute('aria-expanded', open ? 'true' : 'false');
   });
   var lastG = '';
   function ngroup(e) { var m = /^(\d{4})-(\d{2})/.exec(e.d || ''); return m ? m[1] + '年' + (+m[2]) + '月' : '日付なし'; }
