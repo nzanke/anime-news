@@ -22,6 +22,7 @@ for p in sorted(glob.glob(os.path.join(D, 'rss', '*.jsonl'))):
         r['body'] = r.get('desc') or ''   # RSS の抜粋（本文の冒頭）
         r['rss'] = 1
         recs.append(r)
+for r in recs: T.learn_alias(T.nf(r['body'])); T.learn_alias2(T.nf(r['body']))   # 抜粋の「正式名称（略称）」も略称の表に
 ev, pending = list(prv['ev']), []
 n0 = len(ev)
 T.extract(recs, ev, pending)
@@ -59,6 +60,13 @@ items, upcoming, released, ev = T.aggregate(ev)
 # 同じ日に同じ作品を伝えた行を1行に（期の印・（仮題）・副題の有無だけが違う名前：ブラッククローバー／ブラッククローバー 第10期、無職転生III／無職転生III ~異世界行ったら本気だす~）
 import re
 def bkey(n): return T.norm(re.sub(r'[(（]仮[題称][)）]', '', T.SEASON_MARK.sub('', re.sub(r'\s*[~〜～][^~〜～]+[~〜～]\s*$', '', n))))
+T.is_person('x')
+_pc = {}
+def names(t):   # 見出しに出てくる人名（データベース・声優一覧にある3字以上の名前）
+    if t not in _pc:
+        k = T.norm(t)
+        _pc[t] = {k[i:j] for i in range(len(k)) for j in range(i + 3, min(len(k), i + 7) + 1) if k[i:j] in T._persons and not k[i:j].isascii()}
+    return _pc[t]
 merged, rows = set(), {}
 for i, e in enumerate(items):
     rows.setdefault(e['d'], []).append(i)
@@ -69,7 +77,8 @@ for d, idx in rows.items():
             if y == x or y in merged: continue
             a_, b_ = items[x], items[y]
             ka, kb = bkey(a_['n']), bkey(b_['n'])
-            if len(ka) < 3 or len(kb) < 3 or not (ka in kb or kb in ka): continue
+            same = len(ka) >= 3 and len(kb) >= 3 and (ka in kb or kb in ka)
+            if not same and not (len(names(a_['t']) & names(b_['t'])) >= 2 and (a_.get('p') or '') [:4] == (b_.get('p') or '')[:4]): continue   # 名前が違っても、同じ日の見出しに同じ人（声優・監督）が2人以上出ていれば同じ発表（くくルプ／99回断罪された…）
             if a_.get('c') not in (None, '未定') and b_.get('c') not in (None, '未定') and a_['c'] != b_['c']: continue
             us = {a_['u']} | {o[1] for o in a_.get('o', [])}
             for o in [[b_['s'], b_['u'], b_['t'], b_['d']]] + b_.get('o', []):

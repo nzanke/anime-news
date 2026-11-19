@@ -86,6 +86,7 @@ db_titles, db_starts = set(), defaultdict(list)   # 正規化した番組名 →
 dbp = os.environ.get('NEWS_DB') or os.path.join(ROOT, 'data', 'db', 'anime_credits.sqlite')
 REF = os.path.join(HERE, 'news_ref.json.gz')   # データベースから書き出した番組名・開始日・人名（公開の anime-news 用。--export で作る）
 _ref_persons = None
+_ref_alias = {}
 if os.path.exists(dbp):
     for t, sd in sqlite3.connect(f'file:{dbp}?mode=ro', uri=True).execute('SELECT title, start_date FROM works'):
         k = norm(re.sub(r'\s*[（(][^）)]*[）)]\s*$', '', t))
@@ -94,7 +95,7 @@ if os.path.exists(dbp):
 elif os.path.exists(REF):
     import gzip
     _r = json.load(gzip.open(REF, 'rt', encoding='utf-8'))
-    db_titles = set(_r['titles']); db_starts = defaultdict(list, _r['starts']); _ref_persons = set(_r['persons'])
+    db_titles = set(_r['titles']); db_starts = defaultdict(list, _r['starts']); _ref_persons = set(_r['persons']); _ref_alias = _r.get('alias', {})
 FIX, RENAME = {}, {}
 if os.path.exists(os.path.join(HERE, 'news_upcoming_fix.csv')):
     for row in csv.DictReader(open(os.path.join(HERE, 'news_upcoming_fix.csv'), encoding='utf-8-sig')):
@@ -205,7 +206,7 @@ def expand(name, b, t=''):
         if top and (top[0][1] >= 2 or tails and len(norm(top[0][0])) > len(nn)) and not NOT_TITLE.search(top[0][0]): return top[0][0]   # 副題があれば1回でよい（いちばん長い名前）
     return name
 
-ALIAS = {}   # 略称 → 正式名称。どの記事の本文でも「正式名称（略称）」「『正式名称』（通称、略称）」と書かれたもの
+ALIAS = dict(_ref_alias)   # 略称 → 正式名称。どの記事の本文でも「正式名称（略称）」「『正式名称』（通称、略称）」と書かれたもの
 ALIAS_RX = [re.compile(r'[『「]([^』」（(]{3,80}?)\s*[（(](?:通称[、,]?\s*|以下[、,]?\s*)?([^）)』」]{2,12})[）)][』」]'),
             re.compile(r'[『「]([^』」]{3,80})[』」]\s*[（(](?:通称|以下)[、,]?\s*([^）)]{2,12})[）)]')]
 def learn_alias(b):
@@ -214,6 +215,14 @@ def learn_alias(b):
             full, ab = full.strip(), ab.strip()
             if re.fullmatch(r'[ぁ-ん・\s]+', ab) and '・' in ab or len(norm(ab)) * 2 > len(norm(full)) or re.search(r'[。「」『』]|色紙|カード|グッズ|アクリル|ポスター|ファイル|ブロマイド|しおり|特典|Blu-ray|BOX', full) or \
                re.search(r'\d|種|ver|本作|仮題|仮称|原題|前編|後編|初日|主人公|抜粋', ab, re.I): continue   # 読みがな・グッズ・言葉の注
+            ALIAS.setdefault(norm(ab), full)
+ALIAS_RX2 = [re.compile(r'「((?:[^「」『』（()]|『[^』]{1,40}』){3,90}?)\s*[（(]([^）)」]{2,12})[）)]」'),   # 中に『』のある名前：「99回…『超絶愛されモード』ですって!?(くくルプ)」
+             re.compile(r'『((?:[^『』「」]|「[^」]{1,40}」){3,90})』\s*[（(]([^）)]{2,12})[）)]')]           # 『99回…「超絶愛されモード」ですって!?』(くくルプ)
+def learn_alias2(b):   # RSS の抜粋から（中に別のかぎかっこのある長い名前の略称）
+    for rx in ALIAS_RX2:
+        for full, ab in rx.findall(b or ''):
+            full, ab = full.strip(), ab.strip()
+            if '。' in full or norm(full).startswith(norm(ab)) or len(norm(ab)) * 2 > len(norm(full)) or re.search(r'\d|種|ver|本作|仮題|仮称|原題|読み', ab, re.I): continue
             ALIAS.setdefault(norm(ab), full)
 def alias(name, b):
     """略称を正式名称に（その記事の本文にも正式名称が出てくるときだけ）。略称＋数字（このすば4）は「正式名称 第N期」"""
@@ -248,7 +257,7 @@ def identify(r, t, b):
         # 本文で『』「」に入れて書かれる名前か番組名だけを作品名にする（人名・会社名・「解説」などは書かれない）。
         # ただし見出しに「」の作品名がなく、アニメ化・新作アニメの発表なら、頭の名前が作品名
         if HEAD(b) and r.get('site') == 'MANTANWEB':
-            if re.search(r'週間$|さん$|^ドラマ|^映画|^話題', name) or is_person(name): name = ''
+            if re.search(r'週間$|さん$|^ドラマ|^映画|^話題|^解説|^朝ドラ', name) or is_person(name): name = ''
         elif not (bracketed(name, b) or norm(name) in db_titles or RENAME.get(norm(name)) or
                 (re.search(r'アニメ化|新作アニメ|劇場版アニメ|オリジナル(テレビ)?アニメ|(テレビ|TV)アニメ', t) and norm(name) in norm(b) and not is_person(name))): name = ''
     head = name
@@ -269,12 +278,15 @@ def identify(r, t, b):
         m = (re.search(r'(?:新作|新)(?:テレビ|TV)?(?:アニメ|劇場版|映画)(?:シリーズ)?\s*『([^』]{1,60})』', t) if t.count('『') >= 2 else None) or re.search(r'『([^』]{1,60})』', t) or re.search(r'「([^」]{2,40}?[^』」。―…!?！？])」', t)
         name = m.group(1) if m else ''
     name = re.sub(r'^(TVアニメ|テレビアニメ|劇場版|劇場アニメ|映画|アニメ)\s*', '', name).strip()
-    if HEAD(b) and re.search(r'(する|した|される|れる|ている|てる|しい|ぜ|よ|ね|は|に|を)$', name): return ''   # 見出しだけのとき、言葉の引用（「日常が一変する」）は作品名ではない
+    if HEAD(b) and (re.search(r'(する|した|される|れる|ている|てる|しい|ぜ|よ|ね|は|に|を|だろ)[?？!！]?$|展$', name) or name in ('解説', '話題')): return ''   # 言葉の引用・展覧会   # 見出しだけのとき、言葉の引用（「日常が一変する」）は作品名ではない
     if not name or ST_RX.fullmatch(name) or FRAMES.fullmatch(name): return ''
     if not RENAME.get(norm(name)):
         base = SEASON_MARK.sub('', name).strip() or name   # 「暗殺貴族 第2期」は期を除いて正式名称を探す（期は canon で付け直す）
-        x = expand(base, b, t)
-        name = x if x != base else (alias(base, b) or name)   # 本文から正式名称が取れなければ、略称の表
+        x = alias(base, b) if HEAD(b) else ''   # RSS の抜粋は短く名前の切れ端も多いので、略称の表を先に
+        if x: name = x
+        else:
+            x = expand(base, b, t)
+            name = x if x != base else (alias(base, b) or name)   # 本文から正式名称が取れなければ、略称の表
     if head and not re.search(r'[「『]', head) and not RENAME.get(norm(name)):   # MANTANWEB の見出しの「：」の前は正式名称ではない。本文に同じ名前が『』「」で書かれているときだけ使い、なければ本文の名前
         bq = []
         for mm in re.finditer(r'『([^』]{2,60})』|「([^」]{2,60})」', b[:800]):
@@ -438,12 +450,12 @@ def facts(name, short, t, b, d, kd, when=''):
     seq = bool(SEQ.search(t)) or any(sd < (d or '9999') for sd in db_starts.get(norm(name), [])) or ('劇場版' in t and bool(re.search(r'TVアニメ|テレビアニメ|シリーズ', b[:400])))
     return {'c': c or '未定', 'x': x, 'ct': ct, 'p': p, 'pk': pk, 'tv': tv, 'q': 1 if seq else 0, 'rel': rel}
 
-NOT_RSS = re.compile(r'アニメ化してほしい|どこで見(れ|られ)|見る方法|配信サイト(まとめ|一覧)|無料放送|一挙(放送|配信)|再放送|再配信|ランキング|死去|逝去|追悼|訃報|最新話|(公開|放送|上映)された[『「]|同時視聴|\d位|といえば[?？]|アニメ化の壁|\d{4}年(公開|放送)の?[『「]|限定(上映|公開)|リバイバル|再上映|セレクション放送|アンコール放送|アニメ劇場|ムビチケ|SNS企画')   # 作品の発表ではない記事（見出しで分かるもの）
+NOT_RSS = re.compile(r'アニメ化してほしい|どこで見(れ|られ)|見る方法|配信サイト(まとめ|一覧)|無料放送|一挙(放送|配信)|再放送|再配信|ランキング|死去|逝去|追悼|訃報|最新話|(公開|放送|上映)された[『「]|同時視聴|\d位|といえば[?？]|アニメ化の壁|\d{4}年(公開|放送)の?[『「]|限定(上映|公開)|リバイバル|再上映|セレクション放送|アンコール放送|アニメ劇場|ムビチケ|SNS企画|オールナイトニッポン|ラジオ|野外上映|上映会')   # 作品の発表ではない記事（見出しで分かるもの）
 def is_anime(r, name, t, b):
     if HEAD(b):   # 見出しだけのとき：まとめ・再放送・ゲームや本の発売・実写（「アニメイト」はアニメに数えない）
         ta = bool(re.search(r'アニメ(?!イト)', t))
-        if NOT_RSS.search(t) or (re.search(r'ゲーム|刊行|コミックス|単行本', t) and re.search(r'発売|配信開始|配信決定|刊行', t) and not ta) or (re.search(r'ドラマ|実写', t) and not ta): return False
-        if not ta and not re.search(r'OVA|OAD|劇場版', t) and norm(name) not in db_titles and not r.get('anime'): return False
+        if NOT_RSS.search(t) or (re.search(r'ゲーム|刊行|コミックス|単行本|\d+巻|最終回|連載', t) and not ta) or (re.search(r'ドラマ|実写', t) and not ta): return False
+        if not ta and not re.search(r'OVA|OAD|劇場版|アニメ(?!イト)', b) and not re.search(r'OVA|OAD|劇場版', t) and norm(name) not in db_titles and not r.get('anime'): return False   # 見出しになくても抜粋に「アニメ」があればよい
     if '実写' in b[:200] and not re.search(r'アニメ', t): return False   # 本文の冒頭が実写（Netflix 映画『シティーハンター2』）
     if re.search(r'ミュージカル|上演|舞台(?!あいさつ|挨拶)', t) and 'アニメ' not in t: return False   # 舞台
     if (NOT_ANIME.search(t) or re.search(r'仮面ライダー|戦隊|ウルトラマン|アギト|特撮', t)) and 'アニメ' not in t: return False   # 実写・特撮
@@ -460,6 +472,7 @@ def extract(records, ev, pending):
             if NOT_NEWS_CORE.search(t) or AWARD.search(t) or B_NOT.search(t) or not BODY_DATE.search(b[:2500]): continue
             kd = 'b'
         name = identify(r, t, b)
+        if _HEAD[0] and name and re.search(r'[」』]\s*(?:の)?新作映画', t) and not re.match(r'劇場版|映画', name) and len(re.findall(r'[「『]', t)) == 1: name = '劇場版' + name   # 『ポケモン』新作映画（名前の出ていない新しい映画）はシリーズの名前にしない
         if not name or not is_anime(r, name, t, b): continue
         short = (re.search(r'『([^』]{1,60})』', t) or re.match(r'([^:]{1,60}):', t) or [None, ''])[1]
         works = title_works(t, b, name) if kd != 'post' else []
@@ -663,7 +676,7 @@ if __name__ == '__main__':
         json.dump({'ev': ev, 'urls': sorted({r['url'] for r in recs})}, open(os.path.join(xd, 'news_ev.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
         is_person('x')
         with gzip.open(os.path.join(xd, 'news_ref.json.gz'), 'wt', encoding='utf-8') as f:
-            json.dump({'titles': sorted(db_titles), 'starts': dict(db_starts), 'persons': sorted(_persons)}, f, ensure_ascii=False, separators=(',', ':'))
+            json.dump({'titles': sorted(db_titles), 'starts': dict(db_starts), 'persons': sorted(_persons), 'alias': ALIAS}, f, ensure_ascii=False, separators=(',', ':'))
     out_items, upcoming, released, ev = aggregate(ev)
     json.dump({'items': out_items, 'upcoming': upcoming, 'released': released}, open(OUT, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     json.dump(sorted(set(pending)), open(os.path.join(BODIES, 'pending.json'), 'w', encoding='utf-8'), ensure_ascii=False, indent=0)   # 型に合わなかった見出し（型を足すときに見る）
