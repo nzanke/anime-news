@@ -78,7 +78,7 @@
     var sub = (e.p ? '<span class="tg">' + esc(e.p) + '</span>' : '') + tv;
     return '<li class="ur sr"><span class="dc"><span class="ud">' + dd + '</span>' + icon(e) + '</span>' +
       '<span class="sb"><a class="un" href="' + esc(e.u) + '" target="_blank" rel="noopener">' + esc(e.t) + '</a>' +
-      (e.k === 's' ? '<span class="sq" title="放送日・放送局・公開日のニュース">日程</span>' : (e.q ? '<span class="sq" title="続編・新作">続</span>' : '')) +
+      (e.k !== 's' && e.q ? '<span class="sq" title="続編・新作">続</span>' : '') +
       (sub ? '<span class="tags">' + sub + '</span>' : '') + olist + '</span>' +
       '<span class="st' + (cn ? '' : ' nocn') + '"><span class="sn">' + esc(e.s) + '</span>' + cn + '</span></li>';
   }
