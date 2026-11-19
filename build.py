@@ -1,5 +1,5 @@
 """アニメ制作決定ニュース（https://nzanke.github.io/anime-news/）を組み立てる。
-データは data/news.json（非公開の anime-database の articles/news_tag.py が書き出し、公開の anime-world を経由して届く）。
+データは data/news.json（tools/make_news.py が、RSS の見出し data/rss と非公開の anime-database の手がかり data/news_ev.json から作る）。
 記事の本文は持たず、見出し・リンク・作品名・時期・局だけを載せる。"""
 import hashlib, html, json, os, shutil
 from collections import Counter
@@ -38,8 +38,8 @@ def about(cur):
 {tabs}
 <p><b>アイコン</b>：{ICONS}</p>
 <p><b>種類</b>：映画（アニメ映画）、テレビ（テレビアニメ）、その他（配信アニメ・OVA・CM・動画）、媒体未発表（テレビか映画かなどがまだ発表されていないもの）。</p>
-<p><b>検索と絞り込み</b>：検索欄はスペースで区切ると、すべての語を含むものだけを出します。「日程も出す」は放送日・放送局・公開日のニュースも一覧に入れます。「新規だけ」は続編・新作を除き、新しくアニメ化が決まった作品だけを出します。</p>
-<p><b>集めている記事</b>：MANTANWEB と アニメイトタイムズ のアニメの記事。毎日夕方に新着を集めます（記事の解禁がだいたい16〜17時のため）。過去の記事は2025年11月から集めています。</p>
+<p><b>検索と絞り込み</b>：検索欄はスペースで区切ると、すべての語を含むものだけを出します。サイトのボタンは複数選べ、選んだサイトが伝えた記事だけを出します（何も選ばなければすべて）。同じ日に同じ作品を伝えた記事は1行にまとめ、右端の青い数字（記事の数）を押すと、ほかのサイトの見出しが開きます。「日程も出す」は放送日・放送局・公開日のニュースも一覧に入れます。「新規だけ」は続編・新作を除き、新しくアニメ化が決まった作品だけを出します。</p>
+<p><b>集めている記事</b>：MANTANWEB・ナタリー・オリコン・アニメイトタイムズ・アニメ！アニメ！のアニメの記事。ニュース検索 ceek.jp の新着（RSS）を30分ごとに読みます。MANTANWEB とアニメイトタイムズは記事の本文からも読み取り、ほかのサイトは見出しだけで読み取ります。過去の記事は2025年10月から集めています。</p>
 <p><b>載せているもの</b>：記事の日付・見出し・リンクと、記事から読み取った作品名・種類・放送や公開の時期・放送局。記事の本文は載せていません。読み取りは決まった規則で機械的に行っているため、誤りが混じることがあります。</p>
 </div></details>'''
 
@@ -49,7 +49,7 @@ def page(path, title, body, current, script=''):
     doc = f'''<!DOCTYPE html>
 <html lang="ja"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{full}</title><meta name="description" content="アニメ映画・テレビアニメ・配信アニメなどの制作決定と放送日・公開日のニュースを毎日集めた一覧">
+<title>{full}</title><meta name="description" content="アニメ映画・テレビアニメ・配信アニメなどの制作決定と放送日・公開日のニュースを30分ごとに集めた一覧">
 {FONTS}<link rel="stylesheet" href="style.css?v={CSS_V}"></head>
 <body><div class="wrap">
 <h1 class="sitename"><a href="index.html">{esc(SITE)}</a></h1>
@@ -57,19 +57,22 @@ def page(path, title, body, current, script=''):
 <main>
 {body.replace('{ABOUT}', about(current))}
 </main>
-<footer class="site"><p>MANTANWEB・アニメイトタイムズの記事の見出しとリンクを毎日集めて並べています（記事の本文は載せていません）。アニメの記事を探すなら <a href="https://nzanke.github.io/anime-world/">アニメインタビュー検索</a>。</p></footer>
+<footer class="site"><p>MANTANWEB・ナタリー・オリコン・アニメイトタイムズ・アニメ！アニメ！の記事の見出しとリンクを30分ごとに集めて並べています（記事の本文は載せていません）。アニメの記事を探すなら <a href="https://nzanke.github.io/anime-world/">アニメインタビュー検索</a>。</p></footer>
 </div>{script}<script data-goatcounter="https://nzanke.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script></body></html>
 '''
     open(os.path.join(OUT, path), 'w', encoding='utf-8').write(doc)
 
-nsites = [x for x, _ in Counter(s_ for e in NEWS['items'] for s_ in [e['s']] + [o[0] for o in e.get('o', [])]).most_common()]
+SITE_ORDER = ['MANTANWEB', 'ナタリー', 'オリコン', 'アニメイトタイムズ', 'アニメ！アニメ！']
+_sn = Counter(s_ for e in NEWS['items'] for s_ in [e['s']] + [o[0] for o in e.get('o', [])])
+nsites = [x for x in SITE_ORDER if x in _sn] + [x for x, _ in _sn.most_common() if x not in SITE_ORDER]
 NCATS = [('', 'すべて', 250), ('映画', '映画', 25), ('テレビ', 'テレビ', 250), ('その他', 'その他', 150), ('未定', '媒体未発表', 70)]
 UCATS = NCATS
 btns = lambda cats: ''.join(f'<button type="button" data-c="{c}" style="--h:{h}"{" class=on" if not c else ""}>{esc(t)}<span class="n"></span></button>' for c, t, h in cats)
 SCRIPT = lambda mode: f'<script>window.NEWS="news.json?v={NEWS_V}";window.MODE="{mode}"</script><script src="news.js?v={NJS_V}"></script>'
 page('index.html', SITE, f'''<div class="seg" id="seg">{btns(NCATS)}</div>
 <div class="sbar"><input type="search" id="q" placeholder="作品名・題名で検索">
-<select id="site"><option value="">すべてのサイト</option>{"".join(f'<option>{esc(x)}</option>' for x in nsites)}</select></div>
+</div>
+<div class="sites" id="sites" role="group" aria-label="サイトで絞り込む">{"".join(f'<button type="button" class="sc" data-s="{esc(x)}" aria-pressed="false"><span class="ck" aria-hidden="true"></span>{esc(x)}<span class="n"></span></button>' for x in nsites)}<button type="button" class="sclr" id="sclr" hidden>選択を外す</button></div>
 <div class="opts"><label><input type="checkbox" id="sched" checked> 日程も出す</label><label><input type="checkbox" id="newonly"> 新規だけ</label><label><input type="checkbox" id="old"> 古い順</label></div>
 <div class="cbar"><p class="count" id="count"></p>{{ABOUT}}</div>
 <ul class="ulist" id="list"></ul>

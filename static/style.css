@@ -268,3 +268,17 @@ button.cn[aria-expanded="true"]{box-shadow:0 0 0 2px var(--bg),0 0 0 3.5px var(-
 .olist a{color:var(--fg);text-decoration:none}
 .olist .os{margin-left:6px;font-size:11.5px;color:var(--muted);white-space:nowrap}
 .st:not(.nocn){overflow:visible;padding-right:3px}
+
+/* サイトの絞り込み（複数選べるボタン） */
+.sites{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 0;align-items:center}
+.sites .sc{display:inline-flex;align-items:center;gap:6px;font:500 13px/1 var(--sans);padding:7px 11px 7px 9px;border-radius:999px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer;transition:background .12s,border-color .12s,color .12s}
+.sites .sc:hover{border-color:oklch(0.62 0.12 250)}
+.sites .sc .ck{width:14px;height:14px;border-radius:50%;border:1.5px solid oklch(0.70 0.02 250);box-sizing:border-box;flex:0 0 14px;position:relative}
+.sites .sc .n{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.sites .sc[aria-pressed="true"]{background:oklch(0.95 0.035 250);border-color:oklch(0.58 0.14 250);color:oklch(0.36 0.12 250)}
+.sites .sc[aria-pressed="true"] .ck{background:oklch(0.55 0.16 250);border-color:oklch(0.55 0.16 250)}
+.sites .sc[aria-pressed="true"] .ck::after{content:"";position:absolute;left:3.5px;top:1px;width:3px;height:6.5px;border:solid #fff;border-width:0 1.8px 1.8px 0;transform:rotate(45deg)}
+.sites .sc[aria-pressed="true"] .n{color:oklch(0.45 0.10 250)}
+.sites .sclr{font:13px var(--sans);background:none;border:0;color:var(--accent);cursor:pointer;padding:6px 4px}
+@media (prefers-color-scheme:dark){.sites .sc[aria-pressed="true"]{background:oklch(0.30 0.06 250);border-color:oklch(0.62 0.13 250);color:oklch(0.90 0.05 250)}.sites .sc[aria-pressed="true"] .n{color:oklch(0.80 0.06 250)}}
+@media (max-width:600px){.sites{gap:5px}.sites .sc{font-size:12px;padding:6px 9px 6px 7px}}

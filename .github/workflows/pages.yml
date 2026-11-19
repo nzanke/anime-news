@@ -1,11 +1,12 @@
-name: サイトを組み立てて公開
-# 一覧のデータ（news.json）は、毎日の収集（非公開の anime-database）が公開の anime-world に置くものを取ってくる。
-# 収集は日本時間18時の予定だが GitHub の混み具合で遅れるため、3時間ごとに取り直して組み立てる。
+name: RSS を集めて一覧を作り、サイトを公開
+# 30分ごと：ceek.jp の RSS（5サイト・「アニメ」を含む記事）の新しい見出しを data/rss に足し、
+# 非公開の anime-database が毎日 anime-world に置く手がかり（本文から判定したもの。本文は含まない）と合わせて一覧を作る。
 on:
   push:
     branches: [main]
+    paths-ignore: ['data/rss/**']
   schedule:
-    - cron: '23 */3 * * *'
+    - cron: '7,37 * * * *'
   workflow_dispatch:
 permissions:
   contents: write
@@ -13,25 +14,37 @@ permissions:
   id-token: write
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: 使っていない gh-pages の枝が残っていれば消す
-        run: git push origin --delete gh-pages || true
-      - name: 最新の一覧データを取ってくる
+        run: git push origin --delete gh-pages 2>/dev/null || true
+      - name: RSS の新しい記事を集める
+        run: python3 tools/rss_fetch.py || echo "RSS が読めなかった（前のデータで作る）"
+      - name: 本文から判定した手がかりを取ってくる
         run: |
-          curl -fsSL https://raw.githubusercontent.com/nzanke/anime-world/main/data/news.json -o /tmp/news.json && python3 -c "import json;json.load(open('/tmp/news.json'))" && cp /tmp/news.json data/news.json
-          if ! git diff --quiet data/news.json; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit -m "一覧データを更新" data/news.json
-            git push
+          for f in news_ev.json news_ref.json.gz; do
+            curl -fsSL "https://raw.githubusercontent.com/nzanke/anime-world/main/data/$f" -o "/tmp/$f" && cp "/tmp/$f" "data/$f" || echo "取れない $f"
+          done
+      - name: 一覧を作る
+        run: |
+          python3 tools/make_news.py
+          python3 tools/news_check.py data/news.json || true   # 確認用の一覧との食い違いをログに出す（止めはしない）
+      - name: 集めた記事を保存
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/rss data/news_ev.json data/news_ref.json.gz
+          if ! git diff --cached --quiet; then
+            git commit -m "RSS の記事・手がかりを更新"
+            for i in 1 2 3; do git pull --rebase && git push && break; sleep 5; done
           fi
       - run: python3 build.py
       - uses: actions/upload-pages-artifact@v3
