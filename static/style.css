@@ -298,3 +298,4 @@ button.cn[aria-expanded="true"]{box-shadow:0 0 0 2px var(--bg),0 0 0 3.5px var(-
   .ur:not(.sr) .st{padding-left:48px;margin-top:-6px}   /* 放送・公開前：局名を題名の下にそろえる */
   .ur:not(.sr) .un{flex:1 1 0}
 }
+.sr .tags .tvl:first-child{margin-left:0}
