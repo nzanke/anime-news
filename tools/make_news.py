@@ -67,6 +67,31 @@ def names(t):   # 見出しに出てくる人名（データベース・声優�
         k = T.norm(t)
         _pc[t] = {k[i:j] for i in range(len(k)) for j in range(i + 3, min(len(k), i + 7) + 1) if k[i:j] in T._persons and not k[i:j].isascii()}
     return _pc[t]
+# 抜粋の重なり：同じ発表の記事は、同じコメント・同じ説明文を引いている（「ゆうかわ、アニメ2期制作決定、ありがとうございます!」）
+DESC = {}
+for p in sorted(glob.glob(os.path.join(D, 'rss', '*.jsonl'))):
+    for l in open(p, encoding='utf-8'):
+        try: r = json.loads(l)
+        except Exception: continue
+        if r.get('desc'): DESC[r['url']] = T.norm(re.sub(r'^\.\.\.|\.\.\.$', '', r['desc']))
+SH = 20
+_iu = {u for e in items for u in [e['u']] + [o[1] for o in e.get('o', [])]}   # 一覧に出る記事だけ
+_sh = {u: {DESC[u][i:i + SH] for i in range(max(0, len(DESC[u]) - SH + 1))} for u in _iu if u in DESC}
+_cnt = Counter(g for x in _sh.values() for g in x)
+def shingles(u):
+    return {g for g in _sh.get(u, ()) if _cnt[g] <= 6}   # どの記事にもある決まり文句（サイトの案内）は除く
+def desc_overlap(a_, b_):
+    sa = set().union(*[shingles(u) for u in [a_['u']] + [o[1] for o in a_.get('o', [])]])
+    sb = set().union(*[shingles(u) for u in [b_['u']] + [o[1] for o in b_.get('o', [])]])
+    return len(sa & sb) >= 15   # 20字の切れ端が15以上重なる（＝34字以上同じ文）
+def titles(e): return [e['t']] + [o[2] for o in e.get('o', [])]
+def cross(a_, b_):   # 一方の作品名が、もう一方の見出しに出てくる（『ゆうかわ』TVアニメ第2期 ↔ 勇者パーティーにかわいい子がいたので、告白してみた。 第2期）
+    ka, kb = bkey(a_['n']), bkey(b_['n'])
+    return T.season_no(a_["n"]) == T.season_no(b_["n"]) and ((len(ka) >= 4 and any(ka in T.norm(t) for t in titles(b_))) or (len(kb) >= 4 and any(kb in T.norm(t) for t in titles(a_))))
+def distinct(a_, b_):   # 見出しのかぎかっこの名前がまったく重ならない（同じ催しで発表された別の作品：デルタとガンマ／終末停滞委員会）
+    qa = {T.norm(x) for t in titles(a_) for x in re.findall(r'[「『]([^」』]{2,60})[」』]', t)}
+    qb = {T.norm(x) for t in titles(b_) for x in re.findall(r'[「『]([^」』]{2,60})[」』]', t)}
+    return bool(qa) and bool(qb) and not (qa & qb)
 merged, rows = set(), {}
 for i, e in enumerate(items):
     rows.setdefault(e['d'], []).append(i)
@@ -78,7 +103,7 @@ for d, idx in rows.items():
             a_, b_ = items[x], items[y]
             ka, kb = bkey(a_['n']), bkey(b_['n'])
             same = len(ka) >= 3 and len(kb) >= 3 and (ka in kb or kb in ka)
-            if not same and not (len(names(a_['t']) & names(b_['t'])) >= 2 and (a_.get('p') or '') [:4] == (b_.get('p') or '')[:4]): continue   # 名前が違っても、同じ日の見出しに同じ人（声優・監督）が2人以上出ていれば同じ発表（くくルプ／99回断罪された…）
+            if not same and not (len(names(a_['t']) & names(b_['t'])) >= 2 and (a_.get('p') or '') [:4] == (b_.get('p') or '')[:4]) and not cross(a_, b_) and not (T.season_no(a_['n']) == T.season_no(b_['n']) and not distinct(a_, b_) and desc_overlap(a_, b_)): continue   # 名前が違っても、同じ日の見出しに同じ人（声優・監督）が2人以上出ていれば同じ発表（くくルプ／99回断罪された…）
             if a_.get('c') not in (None, '未定') and b_.get('c') not in (None, '未定') and a_['c'] != b_['c']: continue
             us = {a_['u']} | {o[1] for o in a_.get('o', [])}
             for o in [[b_['s'], b_['u'], b_['t'], b_['d']]] + b_.get('o', []):
