@@ -75,6 +75,10 @@ ST_SAME = {'テレ東': 'テレビ東京', '日テレ': '日本テレビ', 'Disn
 FRAMES = re.compile(r'ノイタミナ|アニメイズム|\+Ultra|IMAnimation|NUMAnimation|FRIDAY ANIME NIGHT|アガルアニメ|日5|木曜劇場|AnichU|ANiMAZiNG')
 SEASON = {'冬': 1, '春': 4, '夏': 7, '秋': 10}
 NEAR = re.compile(r'放送|公開|配信|上映|放映|スタート|始動|予定|ロードショー|開始|(テレビ|TV|劇場)?アニメ化|映画化')
+_HEAD = [False]
+def HEAD(b):   # いま通している記事が RSS の見出しと抜粋だけのもの（本文なし）
+    return _HEAD[0] or not b
+
 NEAR_BODY = re.compile(r'放送|公開|配信|上映|放映|ロードショー')   # 本文は「2026年に20周年」などがあるので、放送・公開などの言葉があるときだけ
 
 # ================================================================ データベース・手直しの表
@@ -243,13 +247,14 @@ def identify(r, t, b):
         if mid and not re.search(r'[「『]|^\s*[\d第]|ぶり|新作|劇場|アニメ', mid): name = nf(seg[:seg.rindex('：')]).strip()
         # 本文で『』「」に入れて書かれる名前か番組名だけを作品名にする（人名・会社名・「解説」などは書かれない）。
         # ただし見出しに「」の作品名がなく、アニメ化・新作アニメの発表なら、頭の名前が作品名
-        if not b and r.get('site') == 'MANTANWEB':
+        if HEAD(b) and r.get('site') == 'MANTANWEB':
             if re.search(r'週間$|さん$|^ドラマ|^映画|^話題', name) or is_person(name): name = ''
         elif not (bracketed(name, b) or norm(name) in db_titles or RENAME.get(norm(name)) or
                 (re.search(r'アニメ化|新作アニメ|劇場版アニメ|オリジナル(テレビ)?アニメ|(テレビ|TV)アニメ', t) and norm(name) in norm(b) and not is_person(name))): name = ''
     head = name
-    if not name and not b and len(re.findall(r'[「『]', t)) >= 2:   # 見出しだけ（RSS）で名前が2つ以上：「A」「B」の作者が描く「C」TVアニメ化 → C、完全オリジナル『X』→ X
-        m = re.search(r'[「『]([^」』]{2,60})[」』](?=\s*(?:が|の)?\s*(?:(?:TV|テレビ)?アニメ化|新作アニメ|劇場アニメ化|アニメ映画化|映画化))', t) or \
+    if not name and HEAD(b) and len(re.findall(r'[「『]', t)) >= 2:   # 見出しだけ（RSS）で名前が2つ以上：「A」「B」の作者が描く「C」TVアニメ化 → C、完全オリジナル『X』→ X
+        m = re.search(r'(?:新作|新)[^「『]{0,15}アニメ[^「『]{0,30}[「『]([^」』]{2,60})[」』]', t) or \
+            re.search(r'[「『]([^」』]{2,60})[」』](?=\s*(?:が|の)?\s*(?:(?:TV|テレビ)?アニメ化|新作アニメ|劇場アニメ化|アニメ映画化|映画化))', t) or \
             re.search(r'(?:描く|原作の|完全オリジナル|劇場アニメ|劇場版アニメ|新作映画|アニメ映画化)\s*[「『]([^」』]{2,60})[」』]', t)
         if m: name = m.group(1)
         if not name:   # 『ONE PIECE』新作映画…『ONE PIECE FILM GOD VALLEY』2027年夏公開 → 後ろの長い名前
@@ -257,14 +262,14 @@ def identify(r, t, b):
             longer = [x for x in qs[1:] if norm(x).startswith(norm(qs[0])) and norm(x) != norm(qs[0])]
             if longer: name = longer[0]
             elif len(qs) >= 2 and re.match(r'FILM\s', qs[1]): name = qs[0] + ' ' + qs[1]   # 「ONE PIECE」新作映画…「FILM GOD VALLEY」
-    if not name and not b:   # 見出しだけ：放送枠の名前（フジ「B8station」枠）を除き、2文字の名前（「尚善」）も取る
+    if not name and HEAD(b):   # 見出しだけ：放送枠の名前（フジ「B8station」枠）を除き、2文字の名前（「尚善」）も取る
         m = re.search(r'『([^』]{1,60})』', t) or re.search(r'「([^」]{2,40})」(?!\s*枠)', t)
         name = m.group(1) if m else ''
     if not name:
         m = (re.search(r'(?:新作|新)(?:テレビ|TV)?(?:アニメ|劇場版|映画)(?:シリーズ)?\s*『([^』]{1,60})』', t) if t.count('『') >= 2 else None) or re.search(r'『([^』]{1,60})』', t) or re.search(r'「([^」]{2,40}?[^』」。―…!?！？])」', t)
         name = m.group(1) if m else ''
     name = re.sub(r'^(TVアニメ|テレビアニメ|劇場版|劇場アニメ|映画|アニメ)\s*', '', name).strip()
-    if not b and re.search(r'(する|した|される|れる|ている|てる|しい|ぜ|よ|ね|は|に|を)$', name): return ''   # 見出しだけのとき、言葉の引用（「日常が一変する」）は作品名ではない
+    if HEAD(b) and re.search(r'(する|した|される|れる|ている|てる|しい|ぜ|よ|ね|は|に|を)$', name): return ''   # 見出しだけのとき、言葉の引用（「日常が一変する」）は作品名ではない
     if not name or ST_RX.fullmatch(name) or FRAMES.fullmatch(name): return ''
     if not RENAME.get(norm(name)):
         base = SEASON_MARK.sub('', name).strip() or name   # 「暗殺貴族 第2期」は期を除いて正式名称を探す（期は canon で付け直す）
@@ -421,21 +426,21 @@ def facts(name, short, t, b, d, kd, when=''):
     K_TITLE[:] = [norm(x) for x in re.findall(r'(?:SP|スペシャル|特番|特別編|短編アニメ|新作アニメ)「([^」]{3,30})」', t)]   # 特番・新作の名前（名探偵コナン 2時間SP「30号殺人事件」）
     wt = work_text(name, short, b)
     tm = t if re.match(r'劇場版|映画', name) else t.replace(name, '').replace(short or '\x00', '')   # 作品名の中の言葉（「可哀想に!劇場」の劇場）は媒体に数えない
-    c, x = medium(when) if when.startswith('劇場版') or (when and not b and medium(when)[0]) else medium(tm); ct = bool(c)   # 見出しだけで2作品を分けたものは、その部分の言葉で（Season 4が放送、劇場版第2弾も公開）   # 名前のない劇場版を分けたものは、その部分の言葉で
+    c, x = medium(when) if when.startswith('劇場版') or (when and HEAD(b) and medium(when)[0]) else medium(tm); ct = bool(c)   # 見出しだけで2作品を分けたものは、その部分の言葉で（Season 4が放送、劇場版第2弾も公開）   # 名前のない劇場版を分けたものは、その部分の言葉で
     if not c and when: c, x = medium(when); ct = bool(c)
     if not c: c, x = body_medium(wt)
     p, pk = plan(when.replace('年の', '年') if when else t, d)
     if rank(pk) < 3 and not when:
         p2, pk2 = plan(past(wt), d, body=True)
-        if rank(pk2) > rank(pk) and (not pk or pk2.startswith(pk[:4])) and not (kd == 'a' and rank(pk2) == 3 and d[:10] <= pk2 <= (datetime.date.fromisoformat(d[:10]) + datetime.timedelta(days=7)).isoformat()): p, pk = p2, pk2   # 発表の記事で記事から1週間以内の日付は前作の公開日や催し・CDの日
+        if rank(pk2) > rank(pk) and (not pk or pk2.startswith(pk[:4])) and not (HEAD(b) and rank(pk) == 2 and pk2[:7] != pk[:7]) and not (kd == 'a' and rank(pk2) == 3 and d[:10] <= pk2 <= (datetime.date.fromisoformat(d[:10]) + datetime.timedelta(days=7)).isoformat()): p, pk = p2, pk2   # 発表の記事で記事から1週間以内の日付は前作の公開日や催し・CDの日
     tv = stations(t + '。' + ''.join(past(s) for s in re.split(r'(?<=[。\n])', wt) if re.search(r'放送|配信|毎週', s))) if (kd == 's' or p) else []
     rel = any(re.search(r'(上映|公開)されていましたが|(上映|公開)されていた', s) and not re.search(r'劇場版|映画[『「]|[『「]', s) for s in re.split(r'(?<=[。\n])', wt))   # この作品はもう上映・公開された（死亡遊戯 44）
     seq = bool(SEQ.search(t)) or any(sd < (d or '9999') for sd in db_starts.get(norm(name), [])) or ('劇場版' in t and bool(re.search(r'TVアニメ|テレビアニメ|シリーズ', b[:400])))
     return {'c': c or '未定', 'x': x, 'ct': ct, 'p': p, 'pk': pk, 'tv': tv, 'q': 1 if seq else 0, 'rel': rel}
 
-NOT_RSS = re.compile(r'アニメ化してほしい|どこで見(れ|られ)|見る方法|配信サイト(まとめ|一覧)|無料放送|一挙(放送|配信)|再放送|再配信|ランキング|死去|逝去|追悼|訃報|最新話|(公開|放送|上映)された[『「]|同時視聴|\d位|といえば[?？]|アニメ化の壁|\d{4}年(公開|放送)の?[『「]|限定(上映|公開)|リバイバル|再上映|セレクション放送|アンコール放送|アニメ劇場|ムビチケ')   # 作品の発表ではない記事（見出しで分かるもの）
+NOT_RSS = re.compile(r'アニメ化してほしい|どこで見(れ|られ)|見る方法|配信サイト(まとめ|一覧)|無料放送|一挙(放送|配信)|再放送|再配信|ランキング|死去|逝去|追悼|訃報|最新話|(公開|放送|上映)された[『「]|同時視聴|\d位|といえば[?？]|アニメ化の壁|\d{4}年(公開|放送)の?[『「]|限定(上映|公開)|リバイバル|再上映|セレクション放送|アンコール放送|アニメ劇場|ムビチケ|SNS企画')   # 作品の発表ではない記事（見出しで分かるもの）
 def is_anime(r, name, t, b):
-    if not b:   # 見出しだけのとき：まとめ・再放送・ゲームや本の発売・実写（「アニメイト」はアニメに数えない）
+    if HEAD(b):   # 見出しだけのとき：まとめ・再放送・ゲームや本の発売・実写（「アニメイト」はアニメに数えない）
         ta = bool(re.search(r'アニメ(?!イト)', t))
         if NOT_RSS.search(t) or (re.search(r'ゲーム|刊行|コミックス|単行本', t) and re.search(r'発売|配信開始|配信決定|刊行', t) and not ta) or (re.search(r'ドラマ|実写', t) and not ta): return False
         if not ta and not re.search(r'OVA|OAD|劇場版', t) and norm(name) not in db_titles and not r.get('anime'): return False
@@ -448,6 +453,7 @@ def is_anime(r, name, t, b):
 def extract(records, ev, pending):
     """記事（title・body・date・url・site）を1本ずつ1〜3の段に通し、手がかり（記事×作品）を ev に足す。本文は手がかりに残さない"""
     for r in records:
+        _HEAD[0] = bool(r.get('rss'))
         t, b, d = nf(r.get('title') or r.get('list_title')), nf(r.get('body')), r.get('date', '')
         kd = kind(t, pending, b)
         if not kd:   # 型に合わない記事（声優・PVの記事など）でも、本文にその作品の日付つきの公開・放送日があれば日程の候補（初めて出た日付なら日程のニュース：縁の手紙）
@@ -460,6 +466,8 @@ def extract(records, ev, pending):
         for n_, when in (works or [(name, '')]):
             e = {'n': n_, 'k': kd, 'd': d, 't': t, 'u': r['url'], 's': r.get('site', '')}
             e.update(facts(n_, short if not works else n_, t, b, d, 's' if kd == 'b' else kd, when))
+            if _HEAD[0] and not works and len(set(re.findall(r'[「『]([^」』]+)[」』]', t))) >= 2 and len(set(re.findall(r'(\d{1,2})月', t))) >= 2:
+                e['p'], e['pk'] = '', ''   # 見出しだけで、2つの作品と2つの時期が並ぶもの（「転スラ」4期第3クールは7月、4月には「クレイマンREVENGE」）は、どちらの時期か分からないので取らない
             if kd == 'b':
                 if not e['pk'] and not works:   # 作品名のない文（「日本では、9月25日に公開される。」）でも、日付の文から読む
                     m_ = BODY_DATE.search(b[:2500])

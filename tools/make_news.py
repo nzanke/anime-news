@@ -19,7 +19,8 @@ for p in sorted(glob.glob(os.path.join(D, 'rss', '*.jsonl'))):
         except Exception: continue
         if r['url'] in done: continue
         done.add(r['url'])
-        r['body'] = ''
+        r['body'] = r.get('desc') or ''   # RSS の抜粋（本文の冒頭）
+        r['rss'] = 1
         recs.append(r)
 ev, pending = list(prv['ev']), []
 n0 = len(ev)
@@ -54,5 +55,29 @@ for k, es in by.items():
         cs = Counter(x['c'] for x in es if x['c'] != '未定' and abs(dn(x) - dn(e)) <= 3)
         if cs and cs.most_common(1)[0][1] > cs.get(e['c'], 0): e['c'] = cs.most_common(1)[0][0]
 items, upcoming, released, ev = T.aggregate(ev)
+
+# 同じ日に同じ作品を伝えた行を1行に（期の印・（仮題）・副題の有無だけが違う名前：ブラッククローバー／ブラッククローバー 第10期、無職転生III／無職転生III ~異世界行ったら本気だす~）
+import re
+def bkey(n): return T.norm(re.sub(r'[(（]仮[題称][)）]', '', T.SEASON_MARK.sub('', re.sub(r'\s*[~〜～][^~〜～]+[~〜～]\s*$', '', n))))
+merged, rows = set(), {}
+for i, e in enumerate(items):
+    rows.setdefault(e['d'], []).append(i)
+for d, idx in rows.items():
+    for x in idx:
+        if x in merged: continue
+        for y in idx:
+            if y == x or y in merged: continue
+            a_, b_ = items[x], items[y]
+            ka, kb = bkey(a_['n']), bkey(b_['n'])
+            if len(ka) < 3 or len(kb) < 3 or not (ka in kb or kb in ka): continue
+            if a_.get('c') not in (None, '未定') and b_.get('c') not in (None, '未定') and a_['c'] != b_['c']: continue
+            us = {a_['u']} | {o[1] for o in a_.get('o', [])}
+            for o in [[b_['s'], b_['u'], b_['t'], b_['d']]] + b_.get('o', []):
+                if o[1] not in us: a_.setdefault('o', []).append(o); us.add(o[1])
+            if T.rank(b_.get('pk', '')) > T.rank(a_.get('pk', '')): a_['p'], a_['pk'] = b_.get('p', ''), b_.get('pk', '')
+            if a_.get('c') in (None, '未定') and b_.get('c'): a_['c'] = b_['c']
+            if b_.get('k') != 's': a_.pop('k', None)   # どちらかが制作決定なら制作決定の行
+            merged.add(y)
+items = [e for i, e in enumerate(items) if i not in merged]
 json.dump({'items': items, 'upcoming': upcoming, 'released': released}, open(os.path.join(D, 'news.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
 print(f'RSS の記事 {len(recs)}本（本文から判定した記事を除く）→ 手がかり {len(ev)}件（RSS から {len(ev) - n0 if len(ev) > n0 else "?"}）→ ニュース {len(items)}件・放送・公開前 {len(upcoming)}・放送・公開済み {len(released)}')
