@@ -461,12 +461,14 @@ def is_anime(r, name, t, b):
     if (NOT_ANIME.search(t) or re.search(r'仮面ライダー|戦隊|ウルトラマン|アギト|特撮', t)) and 'アニメ' not in t: return False   # 実写・特撮
     return bool(r.get('anime')) or norm(name) in db_titles or bool(re.search(r'アニメ|OVA|OAD|劇場版', t)) or bool(re.search(r'アニメ(ーション)?(映画|化|制作)|劇場アニメ|TVアニメ', b[:800]))
 
+FIGURE = re.compile(r'ROBOT魂|S\.H\.Figuarts|METAL BUILD|超合金魂|ねんどろいど|figma|POP UP PARADE|ポップアップパレード|プラモデル|ガンプラ|HGUC|MG\s|RG\s|フィギュア化|一番くじ', re.I)   # 見出しにあればフィギュア・模型の商品のニュース
 # ---------------------------------------------------------------- 記事を通す
 def extract(records, ev, pending):
     """記事（title・body・date・url・site）を1本ずつ1〜3の段に通し、手がかり（記事×作品）を ev に足す。本文は手がかりに残さない"""
     for r in records:
         _HEAD[0] = bool(r.get('rss'))
         t, b, d = nf(r.get('title') or r.get('list_title')), nf(r.get('body')), r.get('date', '')
+        if FIGURE.search(t): continue   # フィギュア・模型の商品のニュース
         kd = kind(t, pending, b)
         if not kd:   # 型に合わない記事（声優・PVの記事など）でも、本文にその作品の日付つきの公開・放送日があれば日程の候補（初めて出た日付なら日程のニュース：縁の手紙）
             if NOT_NEWS_CORE.search(t) or AWARD.search(t) or B_NOT.search(t) or not BODY_DATE.search(b[:2500]): continue

@@ -23,7 +23,7 @@ for p in sorted(glob.glob(os.path.join(D, 'rss', '*.jsonl'))):
         r['rss'] = 1
         recs.append(r)
 for r in recs: T.learn_alias(T.nf(r['body'])); T.learn_alias2(T.nf(r['body']))   # 抜粋の「正式名称（略称）」も略称の表に
-ev, pending = list(prv['ev']), []
+ev, pending = [e for e in prv['ev'] if not T.FIGURE.search(e['t'])], []   # 本文側の手がかりにも同じ除外（毎日の収集が新しい規則で作り直すまでの分）
 n0 = len(ev)
 T.extract(recs, ev, pending)
 
