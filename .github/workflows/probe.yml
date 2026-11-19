@@ -4,17 +4,26 @@ on:
     inputs:
       urls:
         description: '試すURL（空白区切り）'
-        required: true
+        required: false
+        default: ''
+      py:
+        description: '試す Python（1行）'
+        required: false
+        default: ''
 jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - name: 取ってみる
         env:
           URLS: ${{ github.event.inputs.urls }}
+          PY: ${{ github.event.inputs.py }}
         run: |
           for u in $URLS; do
             echo "======== $u"
             curl -sSL -A "Mozilla/5.0 (compatible; anime-news-bot; +https://nzanke.github.io/anime-news/)" -o /tmp/p -w "HTTP %{http_code} %{content_type} %{size_download}B\n" "$u" || true
             head -c 6000 /tmp/p; echo
           done
+          if [ -n "$PY" ]; then python3 -c "$PY"; fi
+          if [ -f tools/probe.py ]; then python3 tools/probe.py; fi
