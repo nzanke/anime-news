@@ -1,4 +1,4 @@
-"""ceek.jp のニュース検索の RSS（5サイト）を読み、新しい記事の見出し・URL・日時・サイトを data/rss/<年-月>.jsonl に足す。
+"""ceek.jp のニュース検索の RSS（5サイト・「アニメ」を含む記事）を読み、新しい記事の見出し・URL・日時・サイトを data/rss/<年-月>.jsonl に足す。
 RSS の要約（本文の冒頭）は公開のリポジトリに残さない。
 
   python3 tools/rss_fetch.py               30分ごと：1ページ目から、もう持っている記事が出てくるまで読む（最大20ページ）
@@ -7,7 +7,7 @@ RSS の要約（本文の冒頭）は公開のリポジトリに残さない。
 import email.utils, glob, json, os, re, sys, time, urllib.request, xml.etree.ElementTree as ET
 from datetime import timezone, timedelta
 
-Q = 'site%3Amantan-web.jp%2Cnatalie.mu%2Cwww.oricon.co.jp%2Cwww.animatetimes.com%2Canimeanime.jp'
+Q = '%E3%82%A2%E3%83%8B%E3%83%A1%20site%3Amantan-web.jp%2Cnatalie.mu%2Cwww.oricon.co.jp%2Cwww.animatetimes.com%2Canimeanime.jp'   # 「アニメ」で絞った5サイト
 URL = 'https://news.ceek.jp/search.cgi?q=' + Q + '&feed=1&page={}'
 UA = {'User-Agent': 'Mozilla/5.0 (compatible; anime-news-bot; +https://nzanke.github.io/anime-news/)'}
 SITES = {'mantan-web.jp': 'MANTANWEB', 'natalie.mu': 'ナタリー', 'www.oricon.co.jp': 'オリコン', 'oricon.co.jp': 'オリコン',
