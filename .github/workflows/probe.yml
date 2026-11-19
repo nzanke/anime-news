@@ -1,0 +1,20 @@
+name: 取得元を試す（手動）
+on:
+  workflow_dispatch:
+    inputs:
+      urls:
+        description: '試すURL（空白区切り）'
+        required: true
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 取ってみる
+        env:
+          URLS: ${{ github.event.inputs.urls }}
+        run: |
+          for u in $URLS; do
+            echo "======== $u"
+            curl -sSL -A "Mozilla/5.0 (compatible; anime-news-bot; +https://nzanke.github.io/anime-news/)" -o /tmp/p -w "HTTP %{http_code} %{content_type} %{size_download}B\n" "$u" || true
+            head -c 6000 /tmp/p; echo
+          done
