@@ -1,0 +1,27 @@
+name: RSS を集める（試し・過去記事）
+on:
+  workflow_dispatch:
+    inputs:
+      args:
+        description: 'rss_fetch.py に渡す引数（例：--until 2025-10-21）'
+        default: ''
+permissions:
+  contents: write
+concurrency:
+  group: rss
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python3 tools/rss_fetch.py ${{ inputs.args }}
+      - name: 集めた記事を保存
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/rss
+          git diff --cached --quiet || (git commit -m "RSS の記事を足す" && git pull --rebase && git push)
