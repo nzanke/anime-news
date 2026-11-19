@@ -58,7 +58,7 @@
     return '<span class="left">' + (n === 0 ? '今日' : n === 1 ? '明日' : 'あと' + n + '日') + '</span>';
   }
   function uprow(e) {
-    return '<li class="ur"><span class="ud">' + day(e) + left(e) + '</span>' + icon(e) +
+    return '<li class="ur"><span class="dc"><span class="ud">' + day(e) + left(e) + '</span>' + icon(e) + '</span>' +
       '<a class="un" href="' + esc(e.su || e.u) + '" target="_blank" rel="noopener">' + esc(e.n) + '</a>' +
       (e.q ? '<span class="sq" title="続編・新作">続</span>' : '') + tvline(e) + '</li>';
   }
@@ -76,7 +76,7 @@
     var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(e.d || '');
     var dd = m ? +m[3] + '<small>' + WD[new Date(+m[1], +m[2] - 1, +m[3]).getDay()] + '</small>' : '<span class="dq">—</span>';
     var sub = (e.p ? '<span class="tg">' + esc(e.p) + '</span>' : '') + tv;
-    return '<li class="ur sr"><span class="ud">' + dd + '</span>' + icon(e) +
+    return '<li class="ur sr"><span class="dc"><span class="ud">' + dd + '</span>' + icon(e) + '</span>' +
       '<span class="sb"><a class="un" href="' + esc(e.u) + '" target="_blank" rel="noopener">' + esc(e.t) + '</a>' +
       (e.k === 's' ? '<span class="sq" title="放送日・放送局・公開日のニュース">日程</span>' : (e.q ? '<span class="sq" title="続編・新作">続</span>' : '')) +
       (sub ? '<span class="tags">' + sub + '</span>' : '') + olist + '</span>' +

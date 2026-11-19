@@ -282,3 +282,19 @@ button.cn[aria-expanded="true"]{box-shadow:0 0 0 2px var(--bg),0 0 0 3.5px var(-
 .sites .sclr{font:13px var(--sans);background:none;border:0;color:var(--accent);cursor:pointer;padding:6px 4px}
 @media (prefers-color-scheme:dark){.sites .sc[aria-pressed="true"]{background:oklch(0.30 0.06 250);border-color:oklch(0.62 0.13 250);color:oklch(0.90 0.05 250)}.sites .sc[aria-pressed="true"] .n{color:oklch(0.80 0.06 250)}}
 @media (max-width:600px){.sites{gap:5px}.sites .sc{font-size:12px;padding:6px 9px 6px 7px}}
+
+/* 日付と媒体のアイコン：パソコンは横並び（今までどおり）、スマホは日付の下にアイコン */
+.dc{display:contents}
+@media (max-width:600px){
+  .dc{display:flex;flex-direction:column;align-items:center;gap:4px;flex:0 0 40px}
+  .dc .ud{flex:none;text-align:center;width:100%}
+  .dc .ud .left{text-align:center}
+  .sr .dc .ud,.sr .dc .ic{margin-top:0}
+  .sr .dc{margin-top:2px}
+  .sr{gap:10px}
+  button.cn{min-width:26px;height:26px;padding:0 7px;font-size:13px}
+  button.cn[aria-expanded="true"]{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--accent)}
+  .sr .st:not(.nocn){margin-top:1px}
+  .ur:not(.sr) .st{padding-left:48px;margin-top:-6px}   /* 放送・公開前：局名を題名の下にそろえる */
+  .ur:not(.sr) .un{flex:1 1 0}
+}
