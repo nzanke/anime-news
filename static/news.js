@@ -75,7 +75,7 @@
     }).join('') + '</ul>' : '';
     var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(e.d || '');
     var dd = m ? +m[3] + '<small>' + WD[new Date(+m[1], +m[2] - 1, +m[3]).getDay()] + '</small>' : '<span class="dq">—</span>';
-    var sub = tv;   // 放送・公開の時期の印は出さない（放送・公開前のページで見る）
+    var sub = '';   // 時期・放送局はニュース一覧には出さない（放送・公開前のページで見る）
     return '<li class="ur sr"><span class="dc"><span class="ud">' + dd + '</span>' + icon(e) + '</span>' +
       '<span class="sb"><a class="un" href="' + esc(e.u) + '" target="_blank" rel="noopener">' + esc(e.t) + '</a>' +
       (e.k !== 's' && e.q ? '<span class="sq" title="続編・新作">続</span>' : '') +
