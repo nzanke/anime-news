@@ -1,10 +1,10 @@
 """ceek.jp のニュース検索の RSS（5サイト・「アニメ」を含む記事）を読み、新しい記事の見出し・URL・日時・サイトを data/rss/<年-月>.jsonl に足す。
-RSS の要約（本文の冒頭）は公開のリポジトリに残さない。
+RSS の抜粋（description。転載が許された範囲の本文の冒頭）も desc に残し、判定に使う。
 
   python3 tools/rss_fetch.py               30分ごと：1ページ目から、もう持っている記事が出てくるまで読む（最大20ページ）
-  python3 tools/rss_fetch.py --until 2025-10-21   過去の記事を集める：その日付より古い記事が出るまでページを送る
+  python3 tools/rss_fetch.py --until 2026-07-27   過去の記事を集める：その日付より古い記事が出るまでページを送る（持っている記事も抜粋などを取り直す）
 """
-import email.utils, glob, json, os, re, sys, time, urllib.request, xml.etree.ElementTree as ET
+import email.utils, glob, html, json, os, re, sys, time, urllib.request, xml.etree.ElementTree as ET
 from datetime import timezone, timedelta
 
 Q = '%E3%82%A2%E3%83%8B%E3%83%A1%20site%3Amantan-web.jp%2Cnatalie.mu%2Cwww.oricon.co.jp%2Cwww.animatetimes.com%2Canimeanime.jp'   # 「アニメ」で絞った5サイト
@@ -36,35 +36,40 @@ def page(n):
         t = re.sub(r'\s*[(（][^()（）]{1,20}[)）]\s*$', '', (it.findtext('title') or '').strip())   # 末尾の「(ナタリー)」などを外す
         try: dt = email.utils.parsedate_to_datetime(it.findtext('pubDate')).astimezone(JST)
         except Exception: continue
-        out.append({'url': u, 'title': t, 'date': dt.strftime('%Y-%m-%d'), 'time': dt.strftime('%H:%M'), 'site': SITES[host], 'cat': (it.findtext('category') or '').strip()})
+        desc = re.sub(r'\s+', ' ', html.unescape(re.sub(r'<[^>]+>', '', it.findtext('description') or ''))).strip()
+        out.append({'url': u, 'title': t, 'date': dt.strftime('%Y-%m-%d'), 'time': dt.strftime('%H:%M'), 'site': SITES[host], 'cat': (it.findtext('category') or '').strip(), 'desc': desc})
     return out
 
 def main():
     until = sys.argv[sys.argv.index('--until') + 1] if '--until' in sys.argv else None
     start = int(sys.argv[sys.argv.index('--from') + 1]) if '--from' in sys.argv else 1
     os.makedirs(DIR, exist_ok=True)
-    seen = set()
-    for p in glob.glob(os.path.join(DIR, '*.jsonl')):
+    have = {}
+    for p in sorted(glob.glob(os.path.join(DIR, '*.jsonl'))):
         for l in open(p, encoding='utf-8'):
-            try: seen.add(json.loads(l)['url'])
+            try: r = json.loads(l); have[r['url']] = r
             except Exception: pass
-    new, n = [], start
+    new, n, upd = [], start, 0
     while True:
         rs = page(n)
         if not rs: print('ページが空・読めない', n); break
-        fresh = [r for r in rs if r['url'] not in seen]
-        for r in fresh: seen.add(r['url'])
+        fresh = [r for r in rs if r['url'] not in have]
+        for r in rs:
+            if r['url'] in have:
+                if r['desc'] and not have[r['url']].get('desc'): have[r['url']]['desc'] = r['desc']; upd += 1
+            else: have[r['url']] = r
         new += fresh
         print(n, rs[0]['date'], '→', rs[-1]['date'], '新しい', len(fresh), flush=True)
         if until:
             if rs[-1]['date'] < until: break
         elif len(fresh) < len(rs) or n >= start + 19: break   # 持っている記事が出てきた
         n += 1; time.sleep(2)
+    if not new and not upd: print('新しい記事なし'); return
     by = {}
-    for r in new: by.setdefault(r['date'][:7], []).append(r)
+    for r in have.values(): by.setdefault(r['date'][:7], []).append(r)
     for m, rs in by.items():
-        with open(os.path.join(DIR, f'{m}.jsonl'), 'a', encoding='utf-8') as f:
-            for r in sorted(rs, key=lambda r: (r['date'], r['time'])): f.write(json.dumps(r, ensure_ascii=False) + '\n')
-    print('足した記事', len(new))
+        with open(os.path.join(DIR, f'{m}.jsonl'), 'w', encoding='utf-8') as f:
+            for r in sorted(rs, key=lambda r: (r['date'], r['time'], r['url'])): f.write(json.dumps(r, ensure_ascii=False) + '\n')
+    print('足した記事', len(new), '・抜粋を足した記事', upd)
 
 if __name__ == '__main__': main()
